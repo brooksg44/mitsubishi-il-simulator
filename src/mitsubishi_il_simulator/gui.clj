@@ -70,8 +70,9 @@
                           (str (get-gui-state :output-log) 
                                "Error saving file: " (.getMessage e) "\n"))))))
 
-;; Forward declaration
+;; Forward declarations
 (declare on-run-program)
+(declare refresh-gui)
 
 ;; GUI Event handlers
 (defn on-input-toggle [address]
@@ -106,7 +107,37 @@
             (update-gui-state! :running true)
             (update-gui-state! :output-log 
                               (str (get-gui-state :output-log) 
-                                   "Program started\n"))))))))
+                                   "Program started\n"))
+            ;; Execute the program step by step until completion
+            (loop [step-count 0]
+              (let [step-result (sim/step-execution)]
+                (cond
+                  (= step-result :program-complete)
+                  (do
+                    (update-gui-state! :running false)
+                    (update-gui-state! :output-log 
+                                      (str (get-gui-state :output-log) 
+                                           "Program execution complete - Logic solved\n")))
+                  
+                  (and (sim/is-running?) (< step-count 1000)) ; Safety limit
+                  (recur (inc step-count))
+                  
+                  (>= step-count 1000)
+                  (do
+                    (sim/stop-execution)
+                    (update-gui-state! :running false)
+                    (update-gui-state! :output-log 
+                                      (str (get-gui-state :output-log) 
+                                           "Program execution stopped - Step limit reached\n")))
+                  
+                  :else
+                  (do
+                    (update-gui-state! :running false)
+                    (update-gui-state! :output-log 
+                                      (str (get-gui-state :output-log) 
+                                           "Program execution stopped\n"))))))
+            ;; Refresh the GUI to show updated outputs
+            (refresh-gui)))))))
 
 (defn on-stop-program []
   "Handle stop program button"
@@ -285,6 +316,12 @@
   (update-gui-state! :output-states 
                     (into {} (map #(vector % (sim/get-device-value :output %)) 
                                  (range 8))))
+  ;; Check if program just completed
+  (when (and (get-gui-state :running) (not (sim/is-running?)))
+    (update-gui-state! :running false)
+    (update-gui-state! :output-log 
+                      (str (get-gui-state :output-log) 
+                           "Program execution complete - Logic solved\n")))
   (swap! gui-state identity)) ; Trigger re-render
 
 ;; Auto-refresh timer (updates every 100ms when running)

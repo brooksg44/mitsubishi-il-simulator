@@ -20,6 +20,7 @@
     :accumulator false ; Current logic state
     :stack []       ; Stack for ANB/ORB operations
     :labels {}      ; Label to instruction index mapping
+    :has-executed-logic false ; Track if we've executed any logic instructions
     
     ;; Timers and counters state
     :timer-values {}
@@ -44,6 +45,7 @@
     :labels {}
     :timer-values {}
     :counter-values {}
+    :has-executed-logic false
     }))
 
 (defn get-device-value [device-type address]
@@ -114,18 +116,29 @@
     
     (case instr-type
       "LD" (do
-             ; For proper ANB/ORB: push accumulator to stack when LD starts a new branch
-             (when (:accumulator @plc-state)
+             ; If we've already executed logic, this LD starts a new parallel branch
+             ; Push current accumulator to stack
+             (when (:has-executed-logic @plc-state)
                (swap! plc-state update :stack conj (:accumulator @plc-state)))
-             (swap! plc-state assoc :accumulator final-value))
+             (swap! plc-state assoc :accumulator final-value)
+             (swap! plc-state assoc :has-executed-logic true))
       "LDI" (do
-              (when (:accumulator @plc-state)
+              (when (:has-executed-logic @plc-state)
                 (swap! plc-state update :stack conj (:accumulator @plc-state)))
-              (swap! plc-state assoc :accumulator (not final-value)))
-      "AND" (swap! plc-state update :accumulator #(and % final-value))
-      "ANI" (swap! plc-state update :accumulator #(and % (not final-value)))
-      "OR" (swap! plc-state update :accumulator #(or % final-value))
-      "ORI" (swap! plc-state update :accumulator #(or % (not final-value)))
+              (swap! plc-state assoc :accumulator (not final-value))
+              (swap! plc-state assoc :has-executed-logic true))
+      "AND" (do
+              (swap! plc-state update :accumulator #(and % final-value))
+              (swap! plc-state assoc :has-executed-logic true))
+      "ANI" (do
+              (swap! plc-state update :accumulator #(and % (not final-value)))
+              (swap! plc-state assoc :has-executed-logic true))
+      "OR" (do
+             (swap! plc-state update :accumulator #(or % final-value))
+             (swap! plc-state assoc :has-executed-logic true))
+      "ORI" (do
+              (swap! plc-state update :accumulator #(or % (not final-value)))
+              (swap! plc-state assoc :has-executed-logic true))
       "XOR" (swap! plc-state update :accumulator #(not= % final-value))
       "XORI" (swap! plc-state update :accumulator #(not= % (not final-value)))
       "OUT" (when device-type
@@ -176,6 +189,10 @@
         ;; Add other instruction types as needed
         nil))))
 
+(defn is-running? []
+  "Check if the program is currently running"
+  (:running @plc-state))
+
 (defn step-execution []
   "Execute one instruction step"
   (let [state @plc-state
@@ -192,7 +209,12 @@
           (execute-instruction line)
           ;; If it's not an instruction line, just skip it
           nil)
-        (swap! plc-state update :pc inc)))))
+        (swap! plc-state update :pc inc)
+        
+        ;; Check if we've reached the end of the program
+        (when (>= (inc pc) (count program))
+          (swap! plc-state assoc :running false)
+          :program-complete)))))
 
 (defn load-program [program-text]
   "Load and parse a program"
