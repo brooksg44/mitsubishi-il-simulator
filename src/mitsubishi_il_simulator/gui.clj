@@ -31,9 +31,17 @@
       (.addAll (.getExtensionFilters chooser) 
                [(FileChooser$ExtensionFilter. (str extension-filter " files") 
                                             [(str "*." extension-filter)])]))
-    (if save?
-      (.showSaveDialog chooser nil)
-      (.showOpenDialog chooser nil))))
+    ;; Get the primary stage to use as parent window
+    (let [result (if save?
+                   (.showSaveDialog chooser nil)
+                   (.showOpenDialog chooser nil))]
+      ;; Bring the result dialog to front
+      (when result
+        (future
+          (Thread/sleep 100)
+          (.exec (Runtime/getRuntime) 
+                 (into-array ["osascript" "-e" "tell application \"System Events\" to set frontmost of first process whose frontmost is true to true"]))))
+      result)))
 
 (defn load-program-from-file []
   "Load program from file"
@@ -62,6 +70,9 @@
                           (str (get-gui-state :output-log) 
                                "Error saving file: " (.getMessage e) "\n"))))))
 
+;; Forward declaration
+(declare on-run-program)
+
 ;; GUI Event handlers
 (defn on-input-toggle [address]
   "Handle input toggle"
@@ -69,7 +80,14 @@
   (update-gui-state! :input-states 
                     (assoc (get-gui-state :input-states) 
                            address 
-                           (sim/get-device-value :input address))))
+                           (sim/get-device-value :input address)))
+  ;; Auto-run the program when input is toggled (if program exists)
+  (let [program-text (get-gui-state :program-text)]
+    (when-not (clojure.string/blank? program-text)
+      (update-gui-state! :output-log 
+                        (str (get-gui-state :output-log) 
+                             "Input X" address " toggled - Auto-running program\n"))
+      (on-run-program))))
 
 (defn on-run-program []
   "Handle run program button"
@@ -194,8 +212,10 @@
       :text (:program-text state)
       :on-text-changed (fn [new-text] (update-gui-state! :program-text new-text))
       :pref-row-count 15
-      :pref-column-count 40
-      :style "-fx-font-family: monospace;"}]})
+      :pref-column-count 60  ; Increased from 40 to 60
+      :min-width 600         ; Set minimum width
+      :pref-width 600        ; Set preferred width
+      :style "-fx-font-family: monospace; -fx-text-fill: black; -fx-control-inner-background: white;"}]})
 
 (defn output-log [state]
   "Create the output log"
@@ -214,10 +234,9 @@
   "Create the main window"
   {:fx/type :stage
    :title "Mitsubishi IL Simulator"
-   :width 1000
+   :width 1200  ; Increased from 1000
    :height 700
    :showing true
-   :always-on-top true  ; Force window to front
    :resizable true
    :on-close-request (fn [_] (on-exit))
    :scene {:fx/type :scene
@@ -230,9 +249,14 @@
                     {:fx/type :h-box
                      :spacing 10
                      :children [
-                       (input-panel state)
-                       (output-panel state)
-                       (program-editor state)]}
+                       {:fx/type :v-box
+                        :spacing 10
+                        :min-width 200
+                        :children [(input-panel state) (output-panel state)]}
+                       {:fx/type :v-box
+                        :spacing 10
+                        :min-width 600  ; Ensure program editor gets minimum space
+                        :children [(program-editor state)]}]}
                     (output-log state)]}}})
 
 ;; Renderer and App management
