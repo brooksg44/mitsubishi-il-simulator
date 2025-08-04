@@ -145,9 +145,9 @@
               (set-device-value! device-type address (:accumulator @plc-state)))
       "OUTI" (when device-type
                (set-device-value! device-type address (not (:accumulator @plc-state))))
-      "SET" (when device-type
+      "SET" (when (and device-type (:accumulator @plc-state))
               (set-device-value! device-type address true))
-      "RST" (when device-type
+      "RST" (when (and device-type (:accumulator @plc-state))
               (set-device-value! device-type address false)))))
 
 (defn execute-special-instruction [instruction]
