@@ -10,6 +10,5 @@
                  [org.openjfx/javafx-fxml "17.0.2"]]
   :main ^:skip-aot mitsubishi-il-simulator.core
   :target-path "target/%s"
-  :jvm-opts []
-  :profiles {:uberjar {:aot :all
-                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
+  :jvm-opts ["-Dclojure.compiler.direct-linking=true"]
+  :profiles {:uberjar {:aot :all}})
