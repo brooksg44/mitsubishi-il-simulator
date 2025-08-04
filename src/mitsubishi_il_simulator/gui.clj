@@ -3,7 +3,7 @@
             [mitsubishi-il-simulator.simulator :as sim])
   (:import [javafx.application Platform]
            [javafx.scene.control Alert Alert$AlertType ButtonType]
-           [javafx.stage FileChooser]
+           [javafx.stage FileChooser FileChooser$ExtensionFilter]
            [java.io File]))
 
 ;; GUI State
@@ -60,7 +60,8 @@
       (catch Exception e
         (update-gui-state! :output-log 
                           (str (get-gui-state :output-log) 
-                               "Error saving file: " (.getMessage e) "\n"))))))"
+                               "Error saving file: " (.getMessage e) "\n"))))))
+
 ;; GUI Event handlers
 (defn on-input-toggle [address]
   "Handle input toggle"
@@ -117,32 +118,6 @@
   (System/exit 0))
 
 ;; GUI Components
-(defn input-button [address state]
-  "Create an input toggle button"
-  {:fx/type :button
-   :text (str "X" address)
-   :style (str "-fx-background-color: " 
-               (if (get (:input-states state) address false) 
-                 "green" 
-                 "black") 
-               "; -fx-text-fill: white;")
-   :on-action (fn [_] (on-input-toggle address))
-   :pref-width 60
-   :pref-height 40})
-
-(defn output-indicator [address state]
-  "Create an output status indicator"
-  {:fx/type :label
-   :text (str "Y" address)
-   :style (str "-fx-background-color: " 
-               (if (get (:output-states state) address false) 
-                 "green" 
-                 "black") 
-               "; -fx-text-fill: white; -fx-alignment: center;")
-   :pref-width 60
-   :pref-height 40
-   :alignment :center})
-
 (defn control-panel []
   "Create the control panel"
   {:fx/type :v-box
@@ -173,9 +148,16 @@
       :hgap 5
       :vgap 5
       :children (for [i (range 8)]
-                  {:fx/type input-button
-                   :address i
-                   :state state
+                  {:fx/type :button
+                   :text (str "X" i)
+                   :style (str "-fx-background-color: " 
+                               (if (get (:input-states state) i false) 
+                                 "green" 
+                                 "black") 
+                               "; -fx-text-fill: white;")
+                   :on-action (fn [_] (on-input-toggle i))
+                   :pref-width 60
+                   :pref-height 40
                    :grid-pane/column (mod i 4)
                    :grid-pane/row (quot i 4)})}]})
 
@@ -189,9 +171,16 @@
       :hgap 5
       :vgap 5
       :children (for [i (range 8)]
-                  {:fx/type output-indicator
-                   :address i
-                   :state state
+                  {:fx/type :label
+                   :text (str "Y" i)
+                   :style (str "-fx-background-color: " 
+                               (if (get (:output-states state) i false) 
+                                 "green" 
+                                 "black") 
+                               "; -fx-text-fill: white; -fx-alignment: center;")
+                   :pref-width 60
+                   :pref-height 40
+                   :alignment :center
                    :grid-pane/column (mod i 4)
                    :grid-pane/row (quot i 4)})}]})
 
@@ -227,21 +216,24 @@
    :title "Mitsubishi IL Simulator"
    :width 1000
    :height 700
+   :showing true
+   :always-on-top true  ; Force window to front
+   :resizable true
    :on-close-request (fn [_] (on-exit))
    :scene {:fx/type :scene
-           :root {:fx/type :border-pane
-                  :top (control-panel)
-                  :left {:fx/type :v-box
-                         :spacing 20
-                         :padding 10
-                         :children [(input-panel state) (output-panel state)]}
-                  :center {:fx/type :v-box
-                           :spacing 10
-                           :padding 10
-                           :children [(program-editor state)]}
-                  :bottom {:fx/type :v-box
-                           :padding 10
-                           :children [(output-log state)]}}}}))
+           :root {:fx/type :v-box
+                  :spacing 10
+                  :padding 10
+                  :children [
+                    {:fx/type :label :text "Mitsubishi IL Simulator" :style "-fx-font-size: 18px; -fx-font-weight: bold;"}
+                    (control-panel)
+                    {:fx/type :h-box
+                     :spacing 10
+                     :children [
+                       (input-panel state)
+                       (output-panel state)
+                       (program-editor state)]}
+                    (output-log state)]}}})
 
 ;; Renderer and App management
 (def renderer
@@ -250,7 +242,19 @@
 
 (defn start-gui []
   "Start the GUI application"
-  (fx/mount-renderer gui-state renderer))
+  (println "Mounting JavaFX GUI...")
+  (fx/mount-renderer gui-state renderer)
+  (println "GUI mounted successfully!")
+  
+  ;; Try to bring window to front on macOS
+  (future
+    (Thread/sleep 1000)
+    (println "Attempting to bring window to front...")
+    ;; This is a macOS-specific command to bring Java apps to front
+    (try
+      (.exec (Runtime/getRuntime) (into-array ["osascript" "-e" "tell application \"Java\" to activate"]))
+      (catch Exception e
+        (println "Could not activate Java application:" (.getMessage e))))))
 
 (defn refresh-gui []
   "Refresh the GUI (call this periodically to update output states)"

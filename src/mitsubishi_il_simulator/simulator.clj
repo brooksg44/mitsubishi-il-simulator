@@ -47,7 +47,8 @@
     }))
 
 (defn get-device-value [device-type address]
-  "Get the value of a device"  (let [state @plc-state
+  "Get the value of a device"
+  (let [state @plc-state
         device-map (case device-type
                      :input (:inputs state)
                      :output (:outputs state)
@@ -61,23 +62,34 @@
 
 (defn set-device-value! [device-type address value]
   "Set the value of a device"
-  (swap! plc-state update device-type assoc address value))
+  (let [state-key (case device-type
+                    :input :inputs
+                    :output :outputs
+                    :memory :memory
+                    :latch :latches
+                    :timer :timers
+                    :counter :counters
+                    :data :data)]
+    (swap! plc-state update state-key assoc address value)))
 
 (defn parse-operand [operand]
   "Parse an operand and return [device-type address]"
   (when (vector? operand)
     (let [op-type (first operand)
-          addr (second operand)]
+          addr-part (second operand)
+          addr (if (vector? addr-part)
+                 (second addr-part) ; Extract from [:octal_number 0] or [:decimal_number 123]
+                 addr-part)]
       (case op-type
-        :input_address [:input (Integer/parseInt addr 8)] ; Octal for inputs
-        :output_address [:output (Integer/parseInt addr 8)] ; Octal for outputs
-        :memory_address [:memory (Integer/parseInt addr)]
-        :latch_address [:latch (Integer/parseInt addr)]
-        :timer_address [:timer (Integer/parseInt addr)]
-        :counter_address [:counter (Integer/parseInt addr)]
-        :data_address [:data (Integer/parseInt addr)]
-        :constant [nil (Integer/parseInt addr)]
-        :decimal_number [nil (Integer/parseInt addr)]
+        :input_address [:input (if (string? addr) (Integer/parseInt addr 8) addr)] ; Octal for inputs
+        :output_address [:output (if (string? addr) (Integer/parseInt addr 8) addr)] ; Octal for outputs
+        :memory_address [:memory (if (string? addr) (Integer/parseInt addr) addr)]
+        :latch_address [:latch (if (string? addr) (Integer/parseInt addr) addr)]
+        :timer_address [:timer (if (string? addr) (Integer/parseInt addr) addr)]
+        :counter_address [:counter (if (string? addr) (Integer/parseInt addr) addr)]
+        :data_address [:data (if (string? addr) (Integer/parseInt addr) addr)]
+        :constant [nil (if (string? addr) (Integer/parseInt addr) addr)]
+        :decimal_number [nil (if (string? addr) (Integer/parseInt addr) addr)]
         nil))))
 
 (defn execute-logical-instruction [instruction]
@@ -87,7 +99,13 @@
         operand (last instr-parts)
         has-modifier (> (count instr-parts) 2)
         modifier (when has-modifier (nth instr-parts 1))
-        [device-type address] (parse-operand operand)
+        unwrapped-operand (if (and (vector? operand) (= (first operand) :operand))
+                            (second operand) ; Unwrap :operand wrapper
+                            operand)
+        final-operand (if (and (vector? unwrapped-operand) (= (first unwrapped-operand) :device_address))
+                        (second unwrapped-operand) ; Unwrap :device_address wrapper
+                        unwrapped-operand)
+        [device-type address] (parse-operand final-operand)
         device-value (if device-type
                       (get-device-value device-type address)
                       address) ; It's a constant
@@ -96,12 +114,12 @@
     
     (case instr-type
       "LD" (do
-             ; Push current accumulator to stack when starting new branch
-             (when (and (:accumulator @plc-state) (seq (:stack @plc-state)))
+             ; For proper ANB/ORB: push accumulator to stack when LD starts a new branch
+             (when (:accumulator @plc-state)
                (swap! plc-state update :stack conj (:accumulator @plc-state)))
              (swap! plc-state assoc :accumulator final-value))
       "LDI" (do
-              (when (and (:accumulator @plc-state) (seq (:stack @plc-state)))
+              (when (:accumulator @plc-state)
                 (swap! plc-state update :stack conj (:accumulator @plc-state)))
               (swap! plc-state assoc :accumulator (not final-value)))
       "AND" (swap! plc-state update :accumulator #(and % final-value))
@@ -117,7 +135,7 @@
       "SET" (when device-type
               (set-device-value! device-type address true))
       "RST" (when device-type
-              (set-device-value! device-type address false)))))))
+              (set-device-value! device-type address false)))))
 
 (defn execute-special-instruction [instruction]
   "Execute special instructions like ANB and ORB"
@@ -148,6 +166,13 @@
         :special_instruction (execute-special-instruction instruction)
         :line (when (> (count instruction) 1)
                 (execute-instruction (second instruction))) ; Handle line wrapper
+        :instruction_line (when (> (count instruction) 1)
+                            ; Find the instruction within the instruction_line
+                            (doseq [part (rest instruction)]
+                              (when (and (vector? part) (= (first part) :instruction))
+                                (execute-instruction (second part)))))
+        :instruction (when (> (count instruction) 1)  
+                       (execute-instruction (second instruction))) ; Handle instruction wrapper
         ;; Add other instruction types as needed
         nil))))
 
@@ -157,8 +182,16 @@
         pc (:pc state)
         program (:program state)]
     (when (and (:running state) (< pc (count program)))
-      (let [instruction (nth program pc)]
-        (execute-instruction instruction)
+      (let [line (nth program pc)]
+        ;; Skip empty lines and comment-only lines, only execute instruction lines
+        (if (and (vector? line) 
+                 (= (first line) :line)
+                 (> (count line) 1)
+                 (vector? (second line))
+                 (= (first (second line)) :instruction_line))
+          (execute-instruction line)
+          ;; If it's not an instruction line, just skip it
+          nil)
         (swap! plc-state update :pc inc)))))
 
 (defn load-program [program-text]

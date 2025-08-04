@@ -5,8 +5,13 @@
   "
   (* Mitsubishi FX Series Instruction List (IL) - Simplified EBNF *)
   
-  program = line*
-  line = (label <':'> <ws>)? instruction <ws>? comment? <'\n'>?
+  program = (line <eol>?)*
+  line = instruction_line | comment_line | empty_line
+  instruction_line = <ws>? (label <':'> <ws>?)? instruction (<ws> comment)?
+  comment_line = <ws>? comment  
+  empty_line = <ws>?
+  
+  eol = '\n' | '\r\n' | '\r'
   
   label = identifier
   
@@ -19,20 +24,20 @@
       special_instruction
   
   logical_instruction = 
-      <'LD'> <ws>? modifier? <ws>? operand | 
-      <'LDI'> <ws>? modifier? <ws>? operand |
-      <'AND'> <ws>? modifier? <ws>? operand | 
-      <'ANI'> <ws>? modifier? <ws>? operand | 
-      <'OR'> <ws>? modifier? <ws>? operand | 
-      <'ORI'> <ws>? modifier? <ws>? operand |
-      <'XOR'> <ws>? modifier? <ws>? operand | 
-      <'XORI'> <ws>? modifier? <ws>? operand |
-      <'OUT'> <ws>? operand | 
-      <'OUTI'> <ws>? operand |
-      <'SET'> <ws>? operand | 
-      <'RST'> <ws>? operand |
-      <'PLS'> <ws>? operand |
-      <'PLF'> <ws>? operand
+      'LD' <ws>? modifier? <ws>? operand | 
+      'LDI' <ws>? modifier? <ws>? operand |
+      'AND' <ws>? modifier? <ws>? operand | 
+      'ANI' <ws>? modifier? <ws>? operand | 
+      'OR' <ws>? modifier? <ws>? operand | 
+      'ORI' <ws>? modifier? <ws>? operand |
+      'XOR' <ws>? modifier? <ws>? operand | 
+      'XORI' <ws>? modifier? <ws>? operand |
+      'OUT' <ws>? operand | 
+      'OUTI' <ws>? operand |
+      'SET' <ws>? operand | 
+      'RST' <ws>? operand |
+      'PLS' <ws>? operand |
+      'PLF' <ws>? operand
   
   data_transfer_instruction =
       <'MOV'> <ws> operand <ws> <','> <ws> operand |
@@ -51,8 +56,8 @@
       <'RET'>
   
   special_instruction =
-      <'ANB'> | 
-      <'ORB'>
+      'ANB' | 
+      'ORB'
   
   modifier = 'N' (* Negation modifier *)
   

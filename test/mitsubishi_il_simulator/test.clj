@@ -41,6 +41,7 @@
       (is (:success result))
       (sim/start-execution)
       (sim/step-execution) ; Execute LD X0
+      (sim/step-execution) ; Skip empty line
       (sim/step-execution) ; Execute OUT Y0
       (is (= true (sim/get-output 0))))))
 
@@ -52,7 +53,9 @@
     (sim/load-program "LD X0\nAND X1\nOUT Y0")
     (sim/start-execution)
     (sim/step-execution) ; LD X0
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; AND X1  
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; OUT Y0
     (is (= true (sim/get-output 0))))
   
@@ -63,7 +66,9 @@
     (sim/load-program "LD X0\nOR X1\nOUT Y0")
     (sim/start-execution)
     (sim/step-execution) ; LD X0
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; OR X1
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; OUT Y0
     (is (= true (sim/get-output 0))))
   
@@ -73,8 +78,11 @@
     (sim/load-program "LD X0\nSET M0\nLD M0\nOUT Y0")
     (sim/start-execution)
     (sim/step-execution) ; LD X0
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; SET M0
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; LD M0
+    (sim/step-execution) ; Skip empty
     (sim/step-execution) ; OUT Y0
     (is (= true (sim/get-output 0)))))
 

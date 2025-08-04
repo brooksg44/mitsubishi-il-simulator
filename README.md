@@ -1,47 +1,109 @@
-# mitsubishi-il-simulator
+# Mitsubishi IL Simulator
 
-FIXME: description
+A simulator for the Mitsubishi FX Series Instruction List (IL) programming language, built with Clojure and JavaFX.
 
-## Installation
+## Features
 
-Download from http://example.com/FIXME.
+- **IL Parser**: Complete parser for Mitsubishi IL instruction set using Instaparse
+- **Real-time Simulation**: Execute IL programs step by step
+- **Interactive GUI**: User-friendly interface with JavaFX/cljfx
+- **I/O Control**: Toggle inputs (X0-X7) and monitor outputs (Y0-Y7)
+- **Visual Feedback**: Green = ON/True, Black = OFF/False
+- **Program Management**: Load, save, edit, and run IL programs
+- **ANB/ORB Support**: Advanced block operations for complex logic
 
-## Usage
+## Supported Instructions
 
-FIXME: explanation
+### Logical Instructions
+- **LD/LDI**: Load/Load Inverted
+- **AND/ANI**: AND/AND Inverted  
+- **OR/ORI**: OR/OR Inverted
+- **XOR/XORI**: XOR/XOR Inverted
+- **OUT/OUTI**: Output/Output Inverted
+- **SET/RST**: Set/Reset
+- **PLS/PLF**: Pulse/Pulse Falling
 
-    $ java -jar mitsubishi-il-simulator-0.1.0-standalone.jar [args]
+### Special Instructions
+- **ANB**: AND Block (combines parallel branches with AND)
+- **ORB**: OR Block (combines parallel branches with OR)
 
-## Options
+### Device Types
+- **X**: Input devices (octal addressing X0-X7)
+- **Y**: Output devices (octal addressing Y0-Y7)
+- **M**: Internal relays/auxiliary relays
+- **L**: Latching relays
+- **T**: Timer coils
+- **C**: Counter coils
+- **D**: Data registers
 
-FIXME: listing of options this app accepts.
+## Installation and Usage
 
-## Examples
+### Prerequisites
+- Java 11 or higher with JavaFX modules
+- Leiningen (Clojure build tool)
 
-...
+### Running the Simulator
 
-### Bugs
+1. Clone the repository:
+```bash
+git clone https://github.com/gregorybrooks/mitsubishi-il-simulator.git
+cd mitsubishi-il-simulator
+```
 
-...
+2. Install dependencies:
+```bash
+lein deps
+```
 
-### Any Other Sections
-### That You Think
-### Might be Useful
+3. Run the simulator:
+```bash
+lein run
+```
 
-## License
+Or use the provided startup scripts:
+```bash
+./run.sh        # Unix/Mac
+run.bat         # Windows
+```
 
-Copyright © 2025 FIXME
+### Using the GUI
 
-This program and the accompanying materials are made available under the
-terms of the Eclipse Public License 2.0 which is available at
-http://www.eclipse.org/legal/epl-2.0.
+1. **Program Editor**: Write or paste IL programs in the center text area
+2. **Input Controls**: Click X0-X7 buttons to toggle inputs (Green=ON, Black=OFF)
+3. **Output Indicators**: Monitor Y0-Y7 outputs (Green=ON, Black=OFF)
+4. **Control Buttons**:
+   - **Load**: Load program from .il file
+   - **Save**: Save current program to .il file
+   - **Run**: Start program execution
+   - **Stop**: Stop program execution
+   - **Reset**: Reset all devices and stop program
+   - **Clear Log**: Clear the output log
+   - **Exit**: Close the simulator
 
-This Source Code may also be made available under the following Secondary
-Licenses when the conditions for such availability set forth in the Eclipse
-Public License, v. 2.0 are satisfied: GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or (at your
-option) any later version, with the GNU Classpath Exception which is available
-at https://www.gnu.org/software/classpath/license.html.
+## Example Programs
+
+### Simple Logic
+```il
+; Load input X0 and output to Y0
+LD X0
+OUT Y0
+
+; Load input X1 inverted and output to Y1
+LD X1
+OUTI Y1
+```
+
+### AND Logic
+```il
+; X0 AND X1 controls Y0
+LD X0
+AND X1
+OUT Y0
+```
+
+### OR Logic with ANB/ORB
+```il
+; (X0 OR X1) AND (X2 OR X3) controls Y0
 LD X0
 OR X1      ; First branch
 
@@ -64,52 +126,6 @@ RST M0
 
 LD M0
 OUT Y0
-```
-
-## EBNF Grammar
-
-The simulator uses the following EBNF grammar for parsing IL programs:
-
-```ebnf
-program = line*
-line = (label ":")? instruction comment?
-
-instruction = 
-    logical_instruction | 
-    data_transfer_instruction |
-    timer_instruction |
-    counter_instruction | 
-    control_flow_instruction | 
-    special_instruction
-
-logical_instruction = 
-    "LD" modifier? operand | 
-    "LDI" modifier? operand |
-    "AND" modifier? operand | 
-    "ANI" modifier? operand | 
-    "OR" modifier? operand | 
-    "ORI" modifier? operand |
-    "XOR" modifier? operand | 
-    "XORI" modifier? operand |
-    "OUT" operand | 
-    "OUTI" operand |
-    "SET" operand | 
-    "RST" operand |
-    "PLS" operand |
-    "PLF" operand
-
-special_instruction = "ANB" | "ORB"
-
-modifier = "N" (* Negation modifier *)
-operand = device_address | constant
-device_address = 
-    "X" octal_number |     (* Input *)
-    "Y" octal_number |     (* Output *)
-    "M" decimal_number |   (* Internal Relay *)
-    "L" decimal_number |   (* Latching Relay *)
-    "T" decimal_number |   (* Timer Coil *)
-    "C" decimal_number |   (* Counter Coil *)
-    "D" decimal_number     (* Data Register *)
 ```
 
 ## Understanding ANB and ORB Instructions
@@ -173,36 +189,15 @@ The simulator maintains global state for:
 - Timer and counter devices
 - Program execution state (program counter, accumulator, etc.)
 
-## References
+## Dependencies
 
-For more information about Mitsubishi PLC programming and IL instructions:
-
-- [Mitsubishi FX Programming Manual](https://docs.rs-online.com/ad97/0900766b80082ee7.pdf)
-- [PLC Programming List - Mitsubishi PLC Part 2](https://maintenanceworld.com/2014/12/08/plc-programming-list-mitsubishi-plc-part-2/)
-- MELSEC FX Family Programmable Logic Controllers Beginner's Manual
-
-## Development
-
-### Project Structure
-```
-mitsubishi-il-simulator/
-├── src/mitsubishi_il_simulator/
-│   ├── core.clj          # Main entry point
-│   ├── parser.clj        # IL grammar and parsing
-│   ├── simulator.clj     # Execution engine  
-│   └── gui.clj          # JavaFX GUI
-├── resources/examples/   # Example IL programs
-├── project.clj          # Leiningen project file
-└── README.md           # This file
-```
-
-### Dependencies
-- **Clojure 1.11.1**: Core language
+- **Clojure 1.12.0**: Core language
 - **Instaparse 1.4.12**: Grammar-based parsing
 - **cljfx 1.7.24**: JavaFX wrapper for Clojure
 - **OpenJFX 17.0.2**: JavaFX runtime
 
-### Building
+## Building
+
 ```bash
 # Run tests
 lein test
@@ -214,6 +209,14 @@ lein uberjar
 java -jar target/uberjar/mitsubishi-il-simulator-0.1.0-SNAPSHOT-standalone.jar
 ```
 
+## References
+
+For more information about Mitsubishi PLC programming and IL instructions:
+
+- [Mitsubishi FX Programming Manual](https://docs.rs-online.com/ad97/0900766b80082ee7.pdf)
+- [PLC Programming List - Mitsubishi PLC Part 2](https://maintenanceworld.com/2014/12/08/plc-programming-list-mitsubishi-plc-part-2/)
+- MELSEC FX Family Programmable Logic Controllers Beginner's Manual
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
@@ -222,4 +225,4 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 Copyright © 2024 Gregory Brooks
 
-Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.
+Distributed under the Eclipse Public License either version 2.0 or (at your option) any later version.

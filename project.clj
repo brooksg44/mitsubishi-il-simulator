@@ -5,16 +5,11 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :dependencies [[org.clojure/clojure "1.12.0"]
                  [instaparse "1.4.12"]
-                 [cljfx "1.7.24"]]
+                 [cljfx "1.7.24"]
+                 [org.openjfx/javafx-controls "17.0.2"]
+                 [org.openjfx/javafx-fxml "17.0.2"]]
   :main ^:skip-aot mitsubishi-il-simulator.core
   :target-path "target/%s"
-  :jvm-opts ["-Dclojure.spec.skip-macros=true"]
+  :jvm-opts []
   :profiles {:uberjar {:aot :all
-                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"
-                                  "--add-modules" "javafx.controls,javafx.fxml,javafx.swing,javafx.web,javafx.media"
-                                  "--add-exports" "javafx.base/com.sun.javafx.runtime=ALL-UNNAMED"
-                                  "--add-exports" "javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED"
-                                  "--add-exports" "javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED"
-                                  "--add-exports" "javafx.base/com.sun.javafx.binding=ALL-UNNAMED"
-                                  "--add-exports" "javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED"
-                                  "--add-exports" "javafx.base/com.sun.javafx.event=ALL-UNNAMED"]}})
+                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
