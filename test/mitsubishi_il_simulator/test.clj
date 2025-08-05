@@ -1,5 +1,6 @@
 (ns mitsubishi-il-simulator.test
   (:require [clojure.test :refer :all]
+            [clojure.pprint :refer [pprint]]
             [mitsubishi-il-simulator.parser :as parser]
             [mitsubishi-il-simulator.simulator :as sim]))
 
@@ -8,14 +9,17 @@
     (let [result (parser/parse-il "LD X0")]
       (is (not (:error result)))
       (is (vector? (:success result)))))
-  
+
   (testing "Simple program parsing"
     (let [result (parser/parse-il "LD X0\nOUT Y0")]
       (is (not (:error result)))
       (is (vector? (:success result)))))
-  
+
   (testing "Complex logic parsing"
     (let [result (parser/parse-il "LD X0\nAND X1\nORB\nOUT Y0")]
+      (println "Testing complex logic parsing:")
+      (println "Parsing\nLD X0\nAND X1\nORB\nOUT Y0\nresult:")
+      (pprint result)
       (is (not (:error result)))
       (is (vector? (:success result))))))
 
@@ -26,14 +30,14 @@
     (is (= true (sim/get-device-value :input 0)))
     (sim/set-device-value! :output 0 false)
     (is (= false (sim/get-device-value :output 0))))
-  
+
   (testing "Input toggle"
     (sim/reset-plc-state!)
     (sim/toggle-input 0)
     (is (= true (sim/get-device-value :input 0)))
     (sim/toggle-input 0)
     (is (= false (sim/get-device-value :input 0))))
-  
+
   (testing "Simple program execution"
     (sim/reset-plc-state!)
     (sim/set-input 0 true)
@@ -58,7 +62,7 @@
     (sim/step-execution) ; Skip empty
     (sim/step-execution) ; OUT Y0
     (is (= true (sim/get-output 0))))
-  
+
   (testing "OR operation"
     (sim/reset-plc-state!)
     (sim/set-input 0 true)
@@ -71,7 +75,7 @@
     (sim/step-execution) ; Skip empty
     (sim/step-execution) ; OUT Y0
     (is (= true (sim/get-output 0))))
-  
+
   (testing "SET/RST operations"
     (sim/reset-plc-state!)
     (sim/set-input 0 true)
